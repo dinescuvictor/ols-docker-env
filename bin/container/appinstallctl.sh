@@ -586,10 +586,6 @@ preinstall_wordpress(){
         #NEWDBPWD="define('DB_HOST', '${PUB_IP}');"
 		NEWDBPWD="define('DB_HOST', '${DB_HOST}');"
 		linechange 'DB_HOST' ${VH_DOC_ROOT}/wp-config.php "${NEWDBPWD}"
-                # Add custom table prefix
-                NEWDBPWD="\$table_prefix = 'custom_prefix_';"
-                linechange 'wp_' ${VH_DOC_ROOT}/wp-config.php "${NEWDBPWD}"
-		
 	elif [ -f ${VH_DOC_ROOT}/wp-config.php ]; then
 		echo "${VH_DOC_ROOT}/wp-config.php already exist, exit !"
 		exit 1
