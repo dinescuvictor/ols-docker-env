@@ -1,24 +1,44 @@
 services:
   mysql:
     image: mariadb:11.4
+    restart: always
     logging:
       driver: none
     command: ["--max-allowed-packet=512M"]
-    volumes:
-      - "./data/db:/var/lib/mysql:delegated"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-    restart: always
+    volumes:
+      - "./data/db:/var/lib/mysql:delegated"
     networks:
       - default
+
   litespeed:
     image: litespeedtech/openlitespeed:${OLS_VERSION}-${PHP_VERSION}
     container_name: litespeed
+    restart: always
     env_file:
       - .env
+    environment:
+      TZ: ${TimeZone}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=web"
+      - >
+        traefik.http.routers.litespeed.rule=Host(`ols.powerit.dev`)
+        || Host(`www.ols.powerit.dev`)
+      - "traefik.http.routers.litespeed.entrypoints=web"
+      - "traefik.http.middlewares.tlsredirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.litespeed.middlewares=tlsredirect"
+      - >
+        traefik.http.routers.litespeed-secure.rule=Host(`ols.powerit.dev`)
+        || Host(`www.ols.powerit.dev`)
+      - "traefik.http.routers.litespeed-secure.entrypoints=websecure"
+      - "traefik.http.routers.litespeed-secure.tls.certresolver=myresolver"
+      - "traefik.http.routers.litespeed-secure.tls=true"
+      - "traefik.http.routers.litespeed-secure.middlewares=noindex-header"
     volumes:
       - ./lsws/conf:/usr/local/lsws/conf
       - ./lsws/admin-conf:/usr/local/lsws/admin/conf
@@ -27,38 +47,42 @@ services:
       - ./acme:/root/.acme.sh/
       - ./logs:/usr/local/lsws/logs/
     ports:
-      - 80:80
-      - 443:443
-      - 443:443/udp
+#      - 980:80
+#      - 9443:443
+#      - 9443:443/udp
       - 7080:7080
-    restart: always
-    environment:
-      TZ: ${TimeZone}
     networks:
       - default
+      - web
+
   phpmyadmin:
     image: bitnami/phpmyadmin:5.2.2
-    ports:
-      - 8080:8080
-      - 8443:8443
+    restart: always
     environment:
         DATABASE_HOST: mysql
-    restart: always
+    ports:
+      - 9080:8080
+      - 8443:8443
     networks:
       - default
+
   redis:
     image: "redis:alpine"
+    environment:
+      - REDIS_REPLICATION_MODE=master
+    restart: always
     logging:
       driver: none
     # command: redis-server --requirepass 8b405f60665e48f795752e534d93b722
     volumes:
       - ./redis/data:/var/lib/redis
       - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
-    environment:
-      - REDIS_REPLICATION_MODE=master
-    restart: always
     networks:
       - default
+
+
 networks:
   default:
     driver: bridge
+  web:
+    external: true
